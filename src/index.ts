@@ -36,7 +36,7 @@ interface IRepo {
       owner: repoInfo?.owner?.login,
     }));
 
-  let sinceDate = Date.getFullYear()+"-01-01T00:00:00"
+  let sinceDate = Date.getUTCFullYear()+"-01-01T00:00:00"
   /**
    * Third, get commit time and parse into commit-time/hour diagram
    */
