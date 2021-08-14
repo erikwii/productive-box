@@ -36,11 +36,12 @@ interface IRepo {
       owner: repoInfo?.owner?.login,
     }));
 
+  let sinceDate = date.getFullYear()+"-01-01T00:00:00"
   /**
    * Third, get commit time and parse into commit-time/hour diagram
    */
   const committedTimeResponseMap = await Promise.all(
-    repos.map(({name, owner}) => githubQuery(createCommittedDateQuery(id, name, owner)))
+    repos.map(({name, owner}) => githubQuery(createCommittedDateQuery(id, name, owner, sinceDate)))
   ).catch(error => console.error(`Unable to get the commit info\n${error}`));
 
   if (!committedTimeResponseMap) return;

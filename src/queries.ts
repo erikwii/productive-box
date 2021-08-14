@@ -23,13 +23,13 @@ export const createContributedRepoQuery = (username: string) => `
   }
 `;
 
-export const createCommittedDateQuery = (id: string, name: string, owner: string) => `
+export const createCommittedDateQuery = (id: string, name: string, owner: string, since: string) => `
   query {
     repository(owner: "${owner}", name: "${name}") {
       defaultBranchRef {
         target {
           ... on Commit {
-            history(since: "${currentTime.getFullYear()}-01-01T00:00:00", author: { id: "${id}" }) {
+            history(since: "${since}", author: { id: "${id}" }) {
               totalCount
               edges {
                 node {
