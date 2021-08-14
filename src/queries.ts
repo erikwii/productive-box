@@ -29,7 +29,8 @@ export const createCommittedDateQuery = (id: string, name: string, owner: string
       defaultBranchRef {
         target {
           ... on Commit {
-            history(first: 100, author: { id: "${id}" }) {
+            history(since: "${currentTime.getFullYear()}-01-01T00:00:00", author: { id: "${id}" }) {
+              totalCount
               edges {
                 node {
                   committedDate
