@@ -4,7 +4,11 @@ import { Octokit } from '@octokit/rest';
 
 import githubQuery from './githubQuery';
 import generateBarChart from './generateBarChart';
-import { userInfoQuery, createContributedRepoQuery, createCommittedDateQuery } from './queries';
+import { 
+  userInfoQuery,
+  createContributedRepoQuery, 
+  createCommittedDateQuery 
+} from './queries';
 /**
  * get environment variable
  */
@@ -30,19 +34,24 @@ interface IRepo {
   const repoResponse = await githubQuery(contributedRepoQuery)
     .catch(error => console.error(`Unable to get the contributed repo\n${error}`));
   const repos: IRepo[] = repoResponse?.data?.user?.repositoriesContributedTo?.nodes
-    .filter(repoInfo => (!repoInfo?.isFork))
+    // .filter(repoInfo => (!repoInfo?.isFork))
     .map(repoInfo => ({
       name: repoInfo?.name,
       owner: repoInfo?.owner?.login,
     }));
-  
-  let thisYear = (new Date()).getFullYear();
-  let sinceDate = thisYear+"-01-01T00:00:00";
+
+  // console.log(JSON.stringify(repoResponse,null,2));
+
+  let d = new Date();
+  const pastYear = d.getFullYear() - 1;
+  d.setFullYear(pastYear);
+  let sinceDate = d.toISOString();
+
   /**
    * Third, get commit time and parse into commit-time/hour diagram
    */
   const committedTimeResponseMap = await Promise.all(
-    repos.map(({name, owner}) => githubQuery(createCommittedDateQuery(id, name, owner, sinceDate)))
+    repos.map(({name, owner}) => githubQuery(createCommittedDateQuery(username, id, name, owner, sinceDate)))
   ).catch(error => console.error(`Unable to get the commit info\n${error}`));
 
   if (!committedTimeResponseMap) return;
@@ -51,12 +60,21 @@ interface IRepo {
   let daytime = 0; // 12 - 18
   let evening = 0; // 18 - 24
   let night = 0; // 0 - 6
+  
+  let additions = 0;
+  let deletions = 0;
+  let comments = 0;
+  let issues = 0;
+  let pullRequests = repoResponse?.data?.user?.pullRequests.totalCount;
 
   committedTimeResponseMap.forEach(committedTimeResponse => {
     committedTimeResponse?.data?.repository?.defaultBranchRef?.target?.history?.edges.forEach(edge => {
       const committedDate = edge?.node?.committedDate;
       const timeString = new Date(committedDate).toLocaleTimeString('en-US', { hour12: false, timeZone: process.env.TIMEZONE });
       const hour = +(timeString.split(':')[0]);
+      additions += edge?.node?.additions;
+      deletions += edge?.node?.deletions;
+      comments += edge?.node?.comments?.totalCount;
 
       /**
        * voting and counting
@@ -66,13 +84,27 @@ interface IRepo {
       if (hour >= 18 && hour < 24) evening++;
       if (hour >= 0 && hour < 6) night++;
     });
+    issues += committedTimeResponse?.data?.repository?.issues?.totalCount;
   });
 
+  // console.log(JSON.stringify(committedTimeResponseMap, null, 2));
+  
   /**
    * Next, generate diagram
    */
   const sum = morning + daytime + evening + night;
   if (!sum) return;
+
+  const additionsPercentage = additions / (deletions+additions) * 100;
+  const roundedAdditionsPercentage = Math.round((additionsPercentage + Number.EPSILON) * 100) / 100;
+  const deletionsPercentage = deletions / (deletions+additions) * 100;
+  const roundedDeletionsPercentage = Math.round((deletionsPercentage + Number.EPSILON) * 100) / 100;
+  console.log(`Commit: ${sum} avg(${Math.round(((sum/365) + Number.EPSILON) * 100) / 100}/day)`);
+  console.log(`Total Additions: ${additions} (${roundedAdditionsPercentage}%)`);
+  console.log(`Total Deletions: ${deletions} (${roundedDeletionsPercentage}%)`);
+  console.log(`Total Issue: ${issues}`);
+  console.log(`Total Pull Request: ${pullRequests}`);
+  console.log(`Total Comment: ${comments}`);
 
   const oneDay = [
     { label: '🌞 Morning', commits: morning },
@@ -93,6 +125,8 @@ interface IRepo {
     return [...prev, line.join(' ')];
   }, []);
 
+  // let Content = "awaoiwjodawoij";
+
   /**
    * Finally, write into gist
    */
@@ -110,6 +144,7 @@ interface IRepo {
         // eslint-disable-next-line quotes
         filename: (morning + daytime) > (evening + night) ? "I'm an early 🐤" : "I'm a night 🦉",
         content: lines.join('\n'),
+        // content: JSON.stringify(committedTimeResponseMap),
       },
     },
   });

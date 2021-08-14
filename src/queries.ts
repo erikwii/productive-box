@@ -11,21 +11,32 @@ export const createContributedRepoQuery = (username: string) => `
   query {
     user(login: "${username}") {
       repositoriesContributedTo(last: 100, includeUserRepositories: true) {
+        totalCount
         nodes {
+          forkCount
+          stargazerCount
           isFork
           name
           owner {
             login
           }
+          primaryLanguage {
+            name
+            color
+          }
         }
+      }
+      pullRequests(last: 100){
+        totalCount
       }
     }
   }
 `;
 
-export const createCommittedDateQuery = (id: string, name: string, owner: string, since: string) => `
+export const createCommittedDateQuery = (username:string, id: string, name: string, owner: string, since: string) => `
   query {
     repository(owner: "${owner}", name: "${name}") {
+      name
       defaultBranchRef {
         target {
           ... on Commit {
@@ -33,12 +44,21 @@ export const createCommittedDateQuery = (id: string, name: string, owner: string
               totalCount
               edges {
                 node {
+                  comments {
+                    totalCount
+                  }
                   committedDate
+                  changedFiles
+                  additions
+                  deletions
                 }
               }
             }
           }
         }
+      }
+      issues(filterBy: {createdBy: "${username}"}){
+        totalCount
       }
     }
   }
